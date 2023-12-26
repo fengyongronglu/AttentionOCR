@@ -9,6 +9,7 @@ import sys
 import tarfile
 import copy
 import sys
+import base64
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -60,6 +61,13 @@ app.config['SECRET_KEY'] = os.urandom(24)
 
 
 # app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
+
+def base64_to_image(base64_code):
+    img_data = base64.b64decode(base64_code)
+    img_array = np.frombuffer(img_data, np.uint8) # 注意，尽管读的深度图是16位，但是这里依然可以用8位进行字符串解析，结果跟16位一致，而且16位解析的话有些图会出错
+    img = cv2.imdecode(img_array, cv2.IMREAD_UNCHANGED)
+    return img
 
 def init_ocr_model():
     detection_pb = './checkpoint/ICDAR_0.7.pb' # './checkpoint/ICDAR_0.7.pb'
@@ -131,6 +139,14 @@ def ocr_upload_file():
     # '''
     return render_template("ocr.html")
 
+
+@app.route('/infer_raw_result', methods=["POST"])
+def infer_raw_result():
+    src_image_np = base64_to_image(request.json["image_base64"])
+    print("infering...")
+    r = detection(src_image_np, ocr_detection_model, ocr_recognition_model, ocr_label_dict, return_json=True)
+    print("Finished!")
+    return r
 
 @app.route('/image_ocr/<filename>')
 def predict_ocr_image(filename):
@@ -241,20 +257,25 @@ def mask_with_points(points, h, w):
 def detection(img_path, detection_model, recognition_model, label_dict, it_is_video=False, return_json=False):
     if it_is_video:
         bgr_image = img_path
-    else:
+    elif isinstance(img_path, str):
         bgr_image = cv2.imread(img_path)
+    elif isinstance(img_path, np.ndarray):
+        bgr_image = img_path
     print(bgr_image.shape)
     vis_image = copy.deepcopy(bgr_image)
     rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
 
     r_boxes, polygons, scores = detection_model.predict(bgr_image)
+    r_boxes = [e.tolist() for e in r_boxes]
+    polygons = [e.tolist() for e in polygons]
+    scores = scores.tolist()
     print("inference results:", len(r_boxes), len(polygons), len(scores))
     print(r_boxes)
     print(polygons)
     print(scores)
     
     if return_json:
-        return json.dumps({"rotated_bboxes": r_boxes.tolist(), "polygons": polygons.tolist(), "scores": scores.tolist()})
+        return json.dumps({"rotated_bboxes": r_boxes, "polygons": polygons, "scores": scores})
 
     for r_box, polygon, score in zip(r_boxes, polygons, scores):
         mask, bbox = mask_with_points(polygon, vis_image.shape[0], vis_image.shape[1])
