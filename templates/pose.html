@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head> 
+	<meta charset="utf-8"> 
+	<title>main</title> 
+	<style>
+		#background{
+		background-image:url('./img/bg.jpg');
+		}
+		body{
+			margin: 0 auto;
+			width: 718px;
+			height: 100%;
+			}
+
+		.nav {
+			line-height:30px;
+			background:rgba(225,225,225,0.6);
+			
+			width:45%;
+			float: right;
+
+			
+			}
+		.rien1 {
+			line-height:30px;
+			background:rgba(225,225,225,0);
+			padding-bottom:  4%;
+			width:100%;
+			}
+		.rien2 {
+		line-height:30px;
+		background:rgba(225,225,225,0);
+		padding-bottom: 58%;
+		width:4%;
+		float: right;
+		}
+		.rien3 {
+		line-height:30px;
+		background:rgba(225,225,225,1);
+		
+		width:100%;
+		float: right;
+		position: absolute;
+		bottom: 0;
+		right: 0;
+		}
+		.fontsize1{
+			font-size: 3vw;
+		}
+		.fontsize2{
+			font-size: 2vw;
+		}
+		.bottom{
+			width:718px;
+			height: 50px;
+			float:left;
+			text-align:left;
+			}
+			.bottom img{
+			width:718px;
+			height:auto;}
+			}
+	</style>
+</head>
+<body>
+	<div style= "width:100%; height: auto">
+		<img  src="../static/img/head2.jpg" height="100%" width="100%"/>
+	</div>
+ 	<div id="Layer1" style="position:absolute; width:718px;  z-index:-1">  
+            <img  src="../static/img/ai.jpg" height="100%" width="100%"/>
+    </div>
+    <div class="rien2">
+    	
+    </div>
+    <div class="rien1">
+    	
+    </div>
+
+    <div class="nav">
+    	
+    	<div style='width:100%; height: 10%'>
+    		<h2>人体姿态检测</h2>
+    		
+    	</div>
+    	<div style='width:100%; height: 40%'>
+    		此方法能够适应各种多变的情况，并基于图像重建人的关节和肢干
+    	</div>
+		<div style='width:100%; padding-right: 58%'>
+			<img src='../static/img/pose.png' alt="pose"  height="100%" width="100%">
+		</div>
+		<div style='width:100%; padding-right: 58%'>
+	        <form method=post enctype=multipart/form-data>
+	            <input type=file name=file style="width: 60%">
+	            <input type=submit value=Upload style="width: 40%">
+	        </form>
+        </div>
+
+    </div>
+    <div class='bottom'>
+		
+			<img src='../static/img/bottom2.jpg' alt="contact">
+	</div>
+
+
+</body>
+</html>
+        
+
+
