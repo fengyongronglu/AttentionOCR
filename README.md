@@ -10,14 +10,17 @@ Our text recognition algorithm not only recognizes Latin and Non-Latin character
 
 **Note that the competition model in docker container as described in [__our technical report__](https://arxiv.org/abs/1912.04561) is slightly different from the recognition model trained from this updated repository.**
 
-## Dependencies
+## 安装依赖
 
 ```
-python 3
-tensorflow-gpu 1.14
-tensorpack 0.9.8
-pycocotools
+pip install tensorflow
+pip install tensorpack
+... 以及其他缺失的模块
 ```
+
+## 启动服务
+`python flaskapp.py`
+可能需要在`flaskapp.py`中修改你需要的端口号
 
 ## Usage
 
