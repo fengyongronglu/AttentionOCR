@@ -41,6 +41,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import  FileStorage
 from subprocess import call
 # from sightengine.client import SightengineClient
+import time
 
 print("import finished")
 
@@ -233,6 +234,72 @@ def draw_annotation(image, points, label, horizon=True, vis_color=(30,255,255)):
     image = np.array(image)
     return image
 
+def draw_annotation_modify(image, points, label, position, horizon=True, vis_color=(30,255,255)):#(30,255,255)
+    # print(type(points)) #list
+    points = np.asarray(points)
+    # print(type(points)) #numpy
+    points = np.reshape(points, [-1, 2])
+    cv2.polylines(image, np.int32([points]), 1, (0, 255, 0), 2)
+    # print(type(image)) #numpy.ndarray
+    # print(points)
+
+    image = Image.fromarray(image)
+    # print(type(image)) #PIL.Image.Image
+    width, height = image.size
+    fond_size = int(max(height, width)*0.03)
+    FONT = ImageFont.truetype(FOND_PATH, fond_size, encoding='utf-8')
+    DRAW = ImageDraw.Draw(image)
+
+    original_points = points
+    points = order_points(points)
+    print(type(points[0]))
+    print(points)
+    if horizon:
+        DRAW.text((points[0][0], max(points[0][1] - fond_size, 0)), label, vis_color, font=FONT) #u, v
+    else:
+        lines = textwrap.wrap(label, width=1)
+        y_text = points[0][1]
+        for line in lines:
+            width, height = FONT.getsize(line)
+            DRAW.text((max(points[0][0] - fond_size, 0), y_text), line, vis_color, font=FONT)
+            y_text += height
+    image = np.array(image)
+
+    # sorted_original_points = sorted(original_points, key=lambda x:x[0])
+    # left_points = sorted_original_points[:2]
+    # center = tuple(np.int32([(left_points[0][0] + left_points[1][0]) * 0.5, (left_points[0][1] + left_points[1][1]) * 0.5]))
+    mean_array = np.mean(points, axis=0)
+    left_points = [point for point in points if point[0] < mean_array[0]]
+    left_points = sorted(left_points, key=lambda x:x[1])
+    max_distance = 0.0
+    center = np.array([0, 0])# (0, 0)error, center is not correctly found
+    for i in range(len(left_points) - 1):
+        distance = np.linalg.norm(left_points[i] - left_points[i+1])
+        if distance > max_distance:
+            max_distance = distance
+            center = np.int32(0.5*(left_points[i] + left_points[i+1]))
+    cv2.circle(image, tuple(center), 1, (0, 0, 255), 2)
+    # cv2.circle(image, tuple(np.int32([100, 200])), 1, (0, 0, 255), 2)
+
+    right_points = [point for point in points if point[0] > mean_array[0]]
+    right_points = sorted(right_points, key=lambda x:x[1])
+    max_distance = 0.0
+    second_center = np.array([0, 0])# (0, 0)error, center is not correctly found
+    for i in range(len(right_points) - 1):
+        distance = np.linalg.norm(right_points[i] - right_points[i+1])
+        if distance > max_distance:
+            max_distance = distance
+            second_center = np.int32(0.5*(right_points[i] + right_points[i+1]))
+    cv2.circle(image, tuple(second_center), 1, (255, 0, 0), 2)
+
+    position.append(center[0])
+    position.append(center[1])
+    position.append(second_center[0])
+    position.append(second_center[1])
+    for point in points:
+        position.append(point[0])
+        position.append(point[1])
+    return image
 
 def poly2mask(vertex_row_coords, vertex_col_coords, shape):
     fill_row_coords, fill_col_coords = draw.polygon(vertex_row_coords, vertex_col_coords, shape)
@@ -265,17 +332,21 @@ def detection(img_path, detection_model, recognition_model, label_dict, it_is_vi
     vis_image = copy.deepcopy(bgr_image)
     rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
 
+    total_time = 0.0
+    start_time = time.time()
     r_boxes, polygons, scores = detection_model.predict(bgr_image)
-    r_boxes = [e.tolist() for e in r_boxes]
-    polygons = [e.tolist() for e in polygons]
-    scores = scores.tolist()
-    print("inference results:", len(r_boxes), len(polygons), len(scores))
-    print(r_boxes)
-    print(polygons)
-    print(scores)
+    total_time += time.time() - start_time
+    record = ""
+    # r_boxes = [e.tolist() for e in r_boxes]
+    # polygons = [e.tolist() for e in polygons]
+    # scores = scores.tolist()
+    # print("inference results:", len(r_boxes), len(polygons), len(scores))
+    # print(r_boxes)
+    # print(polygons)
+    # print(scores)
     
-    if return_json:
-        return json.dumps({"rotated_bboxes": r_boxes, "polygons": polygons, "scores": scores})
+    # if return_json:
+    #     return json.dumps({"rotated_bboxes": r_boxes, "polygons": polygons, "scores": scores})
 
     for r_box, polygon, score in zip(r_boxes, polygons, scores):
         mask, bbox = mask_with_points(polygon, vis_image.shape[0], vis_image.shape[1])
@@ -308,18 +379,38 @@ def detection(img_path, detection_model, recognition_model, label_dict, it_is_vi
         image_padded = np.expand_dims(image_padded, 0)
         print(image_padded.shape)
 
+        start_time = time.time()
         results, probs = recognition_model.predict(image_padded, label_dict, EOS='EOS')
-        #print(''.join(results))
+        total_time += time.time() - start_time
+        # print(''.join(results))
+        if len(results) == 0:
+            continue
+        print(''.join(str(result) for result in results if isinstance(result, str)))
+        record += (''.join(str(result) for result in results if isinstance(result, str)))
+        record += "\n"
         print(probs)
+        record += (' '.join(map(str, probs)))
+        record += "\n"
 
         ccw_polygon = orient(Polygon(polygon.tolist()).simplify(5, preserve_topology=True), sign=1.0)
         pts = list(ccw_polygon.exterior.coords)[:-1]
-        vis_image = draw_annotation(vis_image, pts, ''.join(results))
+        positions = []
+        # vis_image = draw_annotation(vis_image, pts, ''.join(results))
+        vis_image = draw_annotation_modify(vis_image, pts, ''.join(results), position=positions) #resort again here
+        record += ' '.join(map(str, positions))
+        # print(record)
+        record += "\n"
+
         # if height >= width:
         #     vis_image = draw_annotation(vis_image, pts, ''.join(results), False)
         # else:
         #     vis_image = draw_annotation(vis_image, pts, ''.join(results))
-
+    if return_json:
+        # return json.dumps({"rotated_bboxes": r_boxes, "polygons": polygons, "scores": scores})
+        print("========")
+        print(record)
+        print("========")
+        return json.dumps({"info": record})
     return vis_image
 
 
